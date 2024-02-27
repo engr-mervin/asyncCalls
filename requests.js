@@ -107,7 +107,7 @@ const chunkPromises = async (functionCalls, concurrencyLimit = 10, fallback = nu
     }
 };
 
-//API Call Mocked: Takes 1-2 seconds, 20% Error, 80% success
+//API Call Mocked: Takes 1-2 seconds
 const mockAPI = async function (x = 10) {
     try {
         if(showLogs){
