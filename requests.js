@@ -2,10 +2,16 @@
 
 import { calls, concurrent, retries, failRate, showLogs } from "./parameters.js";
 
+let counter = 0;
 
 const getTime = function(){
     const time = performance.now();
     return (Math.round(time/10)/100);
+}
+
+const writeLog = function(message){
+    if(!showLogs) return;
+    console.log(message);
 }
 
 const sleep = async function (delay) {
@@ -17,14 +23,16 @@ const sleep = async function (delay) {
 };
 
 class AsyncCall {
-    constructor(_func, _parameters, _retries = 0, _retryCondition) {
+    constructor(_func, _parameters, _retries = 0, _retryCondition, _initialDelay = 1) {
         this.delayMultiplier = 1.5;
         this.func = _func;
         this.parameters = _parameters;
         this.retries = _retries;
         this.retryCondition = _retryCondition;
+        this.initialDelay = _initialDelay;
+        this.origRetries = _retries;
     }
-    async call(waitingTime = 0.5) {
+    async call(waitingTime = this.initialDelay) {
         try {
             let result;
             if (typeof this.func !== 'function') {
@@ -40,18 +48,13 @@ class AsyncCall {
                 throw new Error(`Invalid parameters given: ${JSON.stringify(this.parameters)}`);
             }
             const willRetry = await this.retryCondition(result);
+
             if (willRetry && this.retries > 0) {
-                if(showLogs){
-                    console.log(`Waiting for ${waitingTime} seconds for request ${this.parameters[0]}`);
-                }
+                writeLog(`Waiting for ${waitingTime} seconds for request ${this.parameters[0]}`);
                 this.retries--;
-
+                counter++;
                 await sleep(waitingTime);
-
-                
-                if(showLogs){
-                    console.log(`Retrying Request ${this.parameters[0]}.`);
-                }
+                writeLog(`Retry ${this.origRetries - this.retries} for Request ${this.parameters[0]}.`);
                 return await this.call(waitingTime * this.delayMultiplier);
             }
             else {
@@ -59,15 +62,19 @@ class AsyncCall {
             }
         }
         catch (error) {
-            if (this.retries === 0) {
+            const willRetry = await this.retryCondition(error);
+
+            if (willRetry && this.retries > 0) {
+                writeLog(`Waiting for ${waitingTime} seconds for request ${this.parameters[0]}`);
+                this.retries--;
+                counter++;
+                await sleep(waitingTime);
+                writeLog(`Retry ${this.origRetries - this.retries} for Request ${this.parameters[0]}.`);
+                return await this.call(waitingTime * this.delayMultiplier);
+            }
+            else {
                 throw error;
             }
-            if(showLogs){
-                console.log(`Retrying Request ${this.parameters[0]}.`);
-            }
-            this.retries--;
-            await sleep(waitingTime);
-            return await this.call(waitingTime * this.delayMultiplier);
         }
     }
 }
@@ -107,27 +114,39 @@ const chunkPromises = async (functionCalls, concurrencyLimit = 10, fallback = nu
     }
 };
 
-//API Call Mocked: Takes 1-2 seconds
+//API Call Mocked: Takes 1-2 seconds, throws an error
 const mockAPI = async function (x = 10) {
     try {
-        if(showLogs){
-            console.log(`Request ${x} start: ${getTime()}`);
-        }
+        writeLog(`Request ${x} start: ${getTime()}`);
         await sleep(Math.random() * 1 + 1);
-
-
         const random = Math.random();
         if (random > failRate) {
-             
-            if(showLogs){
-                console.log(`Request ${x} finish: ${getTime()}`);
-            }
+            writeLog(`Request ${x} finish: ${getTime()}`);
             return [];
         }
         else {
-            if(showLogs){
-                console.log(`Request ${x} error: ${getTime()}`);
-            }
+            writeLog(`Request ${x} error: ${getTime()}`);
+            throw new Error('Internal Server Error');
+        }
+    }
+    catch (error) {
+        throw error;
+    }
+};
+
+
+//API Call Mocked: Takes 1-2 seconds, returns null
+const mockAPI2 = async function (x = 10) {
+    try {
+        writeLog(`Request ${x} start: ${getTime()}`);
+        await sleep(Math.random() * 1 + 1);
+        const random = Math.random();
+        if (random > failRate) {
+            writeLog(`Request ${x} finish: ${getTime()}`);
+            return [];
+        }
+        else {
+            writeLog(`Request ${x} error: ${getTime()}`);
             throw new Error('Internal Server Error');
         }
     }
@@ -138,12 +157,13 @@ const mockAPI = async function (x = 10) {
 
 const setup = async function () {
     const requests = [];
-    
 
     for (let i = 0; i < calls; i++) {
-        const request = new AsyncCall(mockAPI, [i], retries, (res) => {
-            return res === null;
-        });
+        //4th parameter is the retry condition:
+        //If the function returns true, the retry will be triggered, 
+        const request = new AsyncCall(i%2 === 0? mockAPI : mockAPI2, [i], retries, (res) => {
+            return res === null || res.message === 'Internal Server Error';
+        }, 1);
         requests.push(request);
     }
 
@@ -151,10 +171,10 @@ const setup = async function () {
     const result = await chunkPromises(requests, concurrent);
     const runTime = getTime() - startTime;
     const countNull = result.filter((res) => res === null).length;
-    console.log(`Retries: ${retries}, Calls: ${calls}, Nulls: ${countNull}, Runtime: ${runTime}, Concurrent: ${concurrent}`);
-    if(showLogs){
-        console.log(`Result: ${JSON.stringify(result)}`)
-    }
+    
+    console.log(`Params: Retries: ${retries}, Calls: ${calls}, Concurrent: ${concurrent}`);
+    console.log(`Total Retries: ${counter}, Total Nulls: ${countNull}, Total Runtime: ${runTime}`);
+    writeLog(`Result: ${JSON.stringify(result)}`)
 };
 
 

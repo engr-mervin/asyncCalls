@@ -32,13 +32,19 @@ node requests 100 10 0
 **Logs:**
 
 ```bash
-Retries: 0, Calls: 100, Nulls: 43, Runtime: 19.17, Concurrent: 10
+Params: Retries: 0, Calls: 100, Concurrent: 10
+Total Retries: 0, Total Nulls: 17, Total Runtime: 19.03
+Result: [[],[],[],[],[],[],[],[],[],[],null,null,[],[],null,[],[],[],null,
+[],[],[],[],null,[],[],[],null,null,[],[],[],[],null,[],[],[],[],[],[],[],
+[],[],[],[],[],null,[],[],[],[],[],[],[],[],[],[],[],[],[],null,[],[],[],
+null,[],[],[],[],[],null,null,[],[],[],[],null,[],[],[],[],[],null,[],[],
+[],[],[],[],[],[],[],[],[],null,[],[],[],[],null]
 ```
 
 **Example:**
 
 ```javascript
-node requests 100 100 0 1
+node requests 100 30 2
 ```
 
 **Logs:**
@@ -55,13 +61,27 @@ Request 7 start: 0.04
 Request 8 start: 0.04
 Request 9 start: 0.04
 ...
-Retries: 0, Calls: 100, Nulls: 48, Runtime: 2.01, Concurrent: 100
-Result: [[],[],null,null,null,[],null,[],[],null,[],[],null,[],null,[],
-null,null,null,[],null,[],[],[],null,[],null,[],null,[],[],[],null,[],[],
-null,[],[],null,[],null,[],null,[],[],null,[],null,[],null,[],null,null,
-[],[],[],null,null,[],null,[],[],[],[],null,[],null,[],[],null,[],[],[],
-null,[],null,[],null,null,null,null,null,[],null,[],[],[],null,[],null,
-[],null,null,null,null,null,null,null,[],null]
+Params: Retries: 2, Calls: 100, Concurrent: 30
+Total Retries: 26, Total Nulls: 0, Total Runtime: 22.68
+Result: [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+[],[],[],[],[],[],[],[]]
+```
+
+**Example:**
+
+```javascript
+node requests 100 100 0 --noLogs
+```
+
+**Logs:**
+
+```javascript
+Params: Retries: 0, Calls: 100, Concurrent: 100
+Total Retries: 0, Total Nulls: 22, Total Runtime: 2
 ```
 
 You can also change the failRate of the **mockAPI** in the *parameters.js* file:
@@ -70,6 +90,6 @@ You can also change the failRate of the **mockAPI** in the *parameters.js* file:
 export const calls = Number(process.argv[2]) || 100;
 export const concurrent = Number(process.argv[3]) || 20;
 export const retries = Number(process.argv[4]) || 0;
-export const failRate = 0.5; //1 for always fail, 0 for always success
-export const showLogs = !!process.argv[5];
+export const failRate = 0.2;
+export const showLogs = process.argv.includes("--noLogs") ? false : true;
 ```
