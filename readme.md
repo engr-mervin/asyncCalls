@@ -27,7 +27,7 @@ node requests (numberOfCalls) (numberOfConcurrent) (numberOfRetries) --noLogs
 node requests 100 10 0
 ```
 
-*This will send 100 requests, 10 at a time, with 0 retries and will not show logs.*
+*This will send 100 requests, 10 at a time and with 0 retries*
 
 **Logs:**
 
