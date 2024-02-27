@@ -12,7 +12,7 @@ node requests
 
 
 ```javascript
-node requests (numberOfCalls) (numberOfConcurrent) (numberOfRetries) (showLogs)
+node requests (numberOfCalls) (numberOfConcurrent) (numberOfRetries) --noLogs
 ```
 
 1. **numberOfCalls** is the total number of requests to be sent.
