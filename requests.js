@@ -23,15 +23,27 @@ const sleep = async function (delay) {
 };
 
 class AsyncCall {
-    constructor(_func, _parameters, _retries = 0, _retryCondition, _initialDelay = 1) {
+    constructor(_func, _parameters, _retries, _retryCondition, _initialDelay = 1) {
         this.delayMultiplier = 1.5;
         this.func = _func;
         this.parameters = _parameters;
-        this.retries = _retries;
+        this.retries = isNaN(Number(_retries))? 0 : Number(_retries);
         this.retryCondition = _retryCondition;
         this.initialDelay = _initialDelay;
         this.origRetries = _retries;
     }
+
+
+
+    async retry(waitingTime){
+        writeLog(`Waiting for ${waitingTime} seconds for request ${this.parameters[0]}`);
+        this.retries--;
+        counter++;
+        await sleep(waitingTime);
+        writeLog(`Retry ${this.origRetries - this.retries} for Request ${this.parameters[0]}.`);
+        return await this.call(waitingTime * this.delayMultiplier);
+    }
+
     async call(waitingTime = this.initialDelay) {
         try {
             let result;
@@ -47,30 +59,20 @@ class AsyncCall {
             else {
                 throw new Error(`Invalid parameters given: ${JSON.stringify(this.parameters)}`);
             }
-            const willRetry = await this.retryCondition(result);
+            const willRetry = await this.retryCondition(result, undefined);
 
             if (willRetry && this.retries > 0) {
-                writeLog(`Waiting for ${waitingTime} seconds for request ${this.parameters[0]}`);
-                this.retries--;
-                counter++;
-                await sleep(waitingTime);
-                writeLog(`Retry ${this.origRetries - this.retries} for Request ${this.parameters[0]}.`);
-                return await this.call(waitingTime * this.delayMultiplier);
+                return this.retry(waitingTime);
             }
             else {
                 return result;
             }
         }
         catch (error) {
-            const willRetry = await this.retryCondition(error);
+            const willRetry = await this.retryCondition(undefined, error);
 
             if (willRetry && this.retries > 0) {
-                writeLog(`Waiting for ${waitingTime} seconds for request ${this.parameters[0]}`);
-                this.retries--;
-                counter++;
-                await sleep(waitingTime);
-                writeLog(`Retry ${this.origRetries - this.retries} for Request ${this.parameters[0]}.`);
-                return await this.call(waitingTime * this.delayMultiplier);
+                return this.retry(waitingTime);
             }
             else {
                 throw error;
@@ -161,8 +163,8 @@ const setup = async function () {
     for (let i = 0; i < calls; i++) {
         //4th parameter is the retry condition:
         //If the function returns true, the retry will be triggered, 
-        const request = new AsyncCall(i%2 === 0? mockAPI : mockAPI2, [i], retries, (res) => {
-            return res === null || res.message === 'Internal Server Error';
+        const request = new AsyncCall(i%2 === 0? mockAPI : mockAPI2, [i], retries, (res, error) => {
+            return res === null || error?.message === 'Internal Server Error';
         }, 1);
         requests.push(request);
     }
